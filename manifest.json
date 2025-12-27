@@ -1,12 +1,13 @@
 {
   "domain": "energy_guard",
   "name": "Energy Guard",
-  "codeowners": [],
+  "codeowners": ["@felipeheuer"],
+  "integration_type": "hub",
+  "documentation": "https://github.com/felipeheuer/energy_guard",
+  "issue_tracker": "https://github.com/felipeheuer/energy_guard/issues",
   "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/YOUR_USERNAME/energy_guard",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/YOUR_USERNAME/energy_guard/issues",
+  "dependencies": [],
   "requirements": [],
   "version": "0.0.1",
   "description": "Virtual circuit breaker for Home Assistant. Monitors power peaks and automatically cuts off power during overloads."
