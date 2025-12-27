@@ -38,7 +38,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
         # Internal state variables
         self._timer_remove = None
         
-        # Control Entity IDs (resolved during setup)
+        # Control Entity IDs
         self._ent_limit = None
         self._ent_delay = None
         self._ent_monitor = None
@@ -59,7 +59,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
         """Initialize and link to config entities."""
         ent_reg = async_get_ent_reg(self.hass)
         
-        # Helper to resolve entity IDs based on deterministic unique_id pattern
+        # Helper to resolve entity IDs
         def resolve_entity(key, domain):
             return ent_reg.async_get_entity_id(
                 domain, DOMAIN, f"{self._device_id}_{key}"
@@ -70,14 +70,23 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
         self._ent_monitor = resolve_entity("monitor_enabled", "switch")
         self._ent_cutoff_config = resolve_entity("safety_cutoff", "switch")
 
-        # Start monitoring power changes
+        # Build a list of entities to watch
+        # We trigger logic if Power changes OR if Settings change
+        watch_list = [self._source_entity]
+        
+        if self._ent_limit:
+            watch_list.append(self._ent_limit)
+        if self._ent_monitor:
+            watch_list.append(self._ent_monitor)
+            
+        # Start monitoring all inputs
         self.async_on_remove(
-            async_track_state_change_event(self.hass, [self._source_entity], self._check_power)
+            async_track_state_change_event(self.hass, watch_list, self._update_logic)
         )
 
     @callback
-    def _check_power(self, event):
-        """Main logic loop triggered by power changes."""
+    def _update_logic(self, event=None):
+        """Main logic loop triggered by ANY state change (Power or Config)."""
         
         # 1. Check if Master Monitor is enabled
         if self._ent_monitor:
@@ -89,19 +98,19 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
                     self.async_write_ha_state()
                 return
 
-        # 2. Read and normalize Current Power
-        new_state = event.data.get("new_state")
-        if not new_state or new_state.state in ("unknown", "unavailable"):
+        # 2. Get Current Power (Always fetch fresh state, ignore event data)
+        power_state = self.hass.states.get(self._source_entity)
+        if not power_state or power_state.state in ("unknown", "unavailable"):
             return
-        
+
         try:
-            # String cleanup (handles formats like "1.200,50")
-            raw = new_state.state.replace(',', '.').strip()
+            # String cleanup
+            raw = power_state.state.replace(',', '.').strip()
             clean = ''.join(c for c in raw if c.isdigit() or c == '.')
             current_power = float(clean)
             
             # kW to W conversion
-            unit = (new_state.attributes.get("unit_of_measurement") or "").lower()
+            unit = (power_state.attributes.get("unit_of_measurement") or "").lower()
             if unit in ["kw", "kilowatt"]:
                 current_power *= 1000.0
         except ValueError:
@@ -116,7 +125,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
                     limit = float(st.state)
                 except ValueError: pass
 
-        # 4. Comparison
+        # 4. Comparison Logic
         if current_power > limit:
             # --- OVERLOAD DETECTED ---
             if self._attr_is_on:
@@ -159,14 +168,14 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
         # 1. Increment Counter
         self.hass.bus.async_fire(f"energy_guard_increment_{self._device_id}")
         
-        # 2. Fire event for external automations
+        # 2. Fire event
         self.hass.bus.async_fire("energy_guard_tripped", {
             "device_id": self._device_id,
             "entity_id": self.entity_id,
             "source": self._source_entity
         })
 
-        # 3. SAFETY CUTOFF (If enabled and physical switch exists)
+        # 3. Safety Cutoff
         if self._ent_cutoff_config and self._cutoff_switch_physical:
             st = self.hass.states.get(self._ent_cutoff_config)
             if st and st.state == STATE_ON:
