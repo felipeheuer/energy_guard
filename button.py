@@ -1,6 +1,6 @@
 """Button platform."""
 from homeassistant.components.button import ButtonEntity
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory # <--- IMPORT NOVO
 from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -14,6 +14,9 @@ class EnergyGuardResetButton(ButtonEntity):
     _attr_has_entity_name = True
     _attr_name = "Reset Statistics"
     _attr_icon = "mdi:restart"
+    
+    # ADICIONADO
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, device_id, data):
         self._device_id = device_id

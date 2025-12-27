@@ -6,7 +6,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory # <--- IMPORT NOVO
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.core import callback
 from .const import DOMAIN
@@ -31,6 +31,9 @@ class EnergyGuardPeakSensor(SensorEntity, RestoreEntity):
     _attr_native_unit_of_measurement = "W"
     _attr_icon = "mdi:chart-histogram"
     _attr_has_entity_name = True
+    
+    # ADICIONADO: Move para Diagnóstico
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, device_id, data, key, name):
         self._device_id = device_id
@@ -93,6 +96,9 @@ class EnergyGuardCounterSensor(SensorEntity, RestoreEntity):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_icon = "mdi:counter"
     _attr_has_entity_name = True
+    
+    # ADICIONADO: Move para Diagnóstico
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, device_id, data, key, name):
         self._device_id = device_id
