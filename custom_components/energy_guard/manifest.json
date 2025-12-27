@@ -9,6 +9,6 @@
   "integration_type": "hub",
   "config_flow": true,
   "iot_class": "local_push",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Virtual circuit breaker for Home Assistant. Monitors power peaks and automatically cuts off power during overloads."
 }
