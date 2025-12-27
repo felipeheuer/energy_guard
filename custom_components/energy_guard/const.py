@@ -1,0 +1,22 @@
+"""Constants for Energy Guard."""
+from homeassistant.const import Platform
+
+DOMAIN = "energy_guard"
+DEFAULT_NAME = "Energy Guard"
+
+PLATFORMS = [
+    Platform.SWITCH,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.BUTTON,
+]
+
+CONF_MONITORED_DEVICES = "monitored_devices"
+
+DEFAULT_LIMIT_W = 2000
+DEFAULT_DELAY_SEC = 3
+
+ICON_GUARD_ON = "mdi:shield-check"
+ICON_GUARD_OFF = "mdi:shield-off"
+ICON_ALERT = "mdi:alert-circle"
