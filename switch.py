@@ -1,6 +1,6 @@
 """Switch platform."""
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory # <--- IMPORT NOVO
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.const import STATE_ON
 from .const import DOMAIN, ICON_GUARD_ON, ICON_GUARD_OFF
@@ -10,17 +10,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     for device_id, data in device_map.items():
         entities.append(EnergyGuardSwitch(
-            device_id, data, "monitor_enabled", "Monitor Enabled", True, "mdi:eye", "mdi:eye-off"
+            device_id, data, "monitor_enabled", "Guard: Monitor Enabled", True, "mdi:eye", "mdi:eye-off"
         ))
         if data['switch_entity']:
             entities.append(EnergyGuardSwitch(
-                device_id, data, "safety_cutoff", "Safety Cutoff Action", False, ICON_GUARD_ON, ICON_GUARD_OFF
+                device_id, data, "safety_cutoff", "Guard: Safety Cutoff", False, ICON_GUARD_ON, ICON_GUARD_OFF
             ))
     async_add_entities(entities)
 
 class EnergyGuardSwitch(SwitchEntity, RestoreEntity):
-    
-    # ADICIONADO: Move para o bloco Configuração
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, device_id, data, key, name, default, icon_on, icon_off):

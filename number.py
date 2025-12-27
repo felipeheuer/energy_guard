@@ -1,34 +1,31 @@
 """Number platform."""
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory # <--- IMPORT NOVO
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 from .const import DOMAIN, DEFAULT_LIMIT_W, DEFAULT_DELAY_SEC
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up the number platform."""
     device_map = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for device_id, data in device_map.items():
         entities.append(EnergyGuardNumber(
-            device_id, data, "power_limit", "Power Limit", "W", 
+            device_id, data, "power_limit", "Guard: Power Limit", "W", 
             DEFAULT_LIMIT_W, 0, 10000, 1, "mdi:lightning-bolt"
         ))
         entities.append(EnergyGuardNumber(
-            device_id, data, "trip_delay", "Trip Delay", "s", 
+            device_id, data, "trip_delay", "Guard: Trip Delay", "s", 
             DEFAULT_DELAY_SEC, 0, 60, 1, "mdi:timer-outline"
         ))
     async_add_entities(entities)
 
 class EnergyGuardNumber(NumberEntity, RestoreEntity):
-    
-    # ADICIONADO: Isso move a entidade para o bloco "Configuração"
     _attr_entity_category = EntityCategory.CONFIG 
 
     def __init__(self, device_id, data, key, name, unit, default, min_v, max_v, step, icon):
         self._device_id = device_id
         self._data = data
         self._key = key
-        self._attr_name = name
+        self._attr_name = name # Recebe o nome com prefixo aqui
         self._attr_native_unit_of_measurement = unit
         self._attr_native_value = default
         self._attr_native_min_value = min_v

@@ -22,7 +22,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
     """Binary sensor representing the alert state and handling core logic."""
 
     _attr_has_entity_name = True
-    _attr_name = "Overload Alert"
+    _attr_name = "Guard: Alert Status"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, hass, device_id, data):
