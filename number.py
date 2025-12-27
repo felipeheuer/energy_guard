@@ -1,21 +1,30 @@
 """Number platform."""
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.restore_state import RestoreEntity
 from .const import DOMAIN, DEFAULT_LIMIT_W, DEFAULT_DELAY_SEC
 
 async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up the number platform."""
     device_map = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for device_id, data in device_map.items():
+        # Power Limit Slider
+        # CHANGE: step changed from 10 to 1 to allow precise control
         entities.append(EnergyGuardNumber(
-            device_id, data, "power_limit", "Power Limit", "W", DEFAULT_LIMIT_W, 0, 10000, 10, "mdi:lightning-bolt"
+            device_id, data, "power_limit", "Power Limit", "W", 
+            DEFAULT_LIMIT_W, 0, 10000, 1, "mdi:lightning-bolt"
         ))
+        # Trip Delay Slider
         entities.append(EnergyGuardNumber(
-            device_id, data, "trip_delay", "Trip Delay", "s", DEFAULT_DELAY_SEC, 0, 60, 1, "mdi:timer-outline"
+            device_id, data, "trip_delay", "Trip Delay", "s", 
+            DEFAULT_DELAY_SEC, 0, 60, 1, "mdi:timer-outline"
         ))
     async_add_entities(entities)
 
-class EnergyGuardNumber(NumberEntity):
+class EnergyGuardNumber(NumberEntity, RestoreEntity):
+    """Number entity that restores its value after restart."""
+
     def __init__(self, device_id, data, key, name, unit, default, min_v, max_v, step, icon):
         self._device_id = device_id
         self._data = data
@@ -38,6 +47,17 @@ class EnergyGuardNumber(NumberEntity):
             connections=set(tuple(x) for x in self._data["connections"])
         )
 
+    async def async_added_to_hass(self) -> None:
+        """Restore last state."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                self._attr_native_value = float(last_state.state)
+            except ValueError:
+                pass
+
     async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
         self._attr_native_value = value
         self.async_write_ha_state()

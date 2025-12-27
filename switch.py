@@ -1,6 +1,8 @@
 """Switch platform."""
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.const import STATE_ON
 from .const import DOMAIN, ICON_GUARD_ON, ICON_GUARD_OFF
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -16,7 +18,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
             ))
     async_add_entities(entities)
 
-class EnergyGuardSwitch(SwitchEntity):
+class EnergyGuardSwitch(SwitchEntity, RestoreEntity):
     def __init__(self, device_id, data, key, name, default, icon_on, icon_off):
         self._device_id = device_id
         self._data = data
@@ -42,6 +44,13 @@ class EnergyGuardSwitch(SwitchEntity):
             identifiers=set(tuple(x) for x in self._data["identifiers"]),
             connections=set(tuple(x) for x in self._data["connections"])
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore last state."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (None, "unknown", "unavailable"):
+            self._is_on = (last_state.state == STATE_ON)
 
     async def async_turn_on(self, **kwargs):
         self._is_on = True
