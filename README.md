@@ -1,3 +1,5 @@
+![Energy Guard Logo](https://github.com/felipeheuer/energy_guard/blob/main/logo.png)
+
 # 🛡️ Energy Guard (Beta)
 
 **Energy Guard** is a custom integration for Home Assistant that acts as a **Virtual Circuit Breaker**. It monitors the power usage (W) of your smart plugs and switches, triggering alerts or cutting off power when a user-defined limit is exceeded.
