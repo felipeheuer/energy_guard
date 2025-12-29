@@ -53,21 +53,22 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         For each selected device, ask the user to confirm the power sensor.
         Auto-selects the first one found if multiple exist.
         """
+        ent_reg = er.async_get(self.hass)
+
         if user_input is not None:
-            # Data comes in as {'sensor_DEVICE_ID': 'sensor.entity_id'}
-            # We store it as {'DEVICE_ID': 'sensor.entity_id'}
-            selection_map = {
-                key.replace("sensor_", ""): entity_id
-                for key, entity_id in user_input.items()
-            }
+            selection_map = {}
+            # User input is now { friendly_device_name: entity_id }
+            # We need to get the device_id from the entity_id
+            for entity_id in user_input.values():
+                entry = ent_reg.async_get(entity_id)
+                if entry and entry.device_id:
+                    selection_map[entry.device_id] = entity_id
 
             return self.async_create_entry(
                 title=DEFAULT_NAME, data={"selection_map": selection_map}
             )
 
         schema_fields = {}
-        ent_reg = er.async_get(self.hass)
-
         device_names_list = await self._get_device_names(self.selected_devices)
 
         for device_id in self.selected_devices:
@@ -78,21 +79,21 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             for entity_id in power_sensors:
                 entry = ent_reg.async_get(entity_id)
                 if entry:
-                    # Use original name (from integration) or name (user-customized)
                     name = entry.original_name or entry.name or entity_id
                     sensor_options[entity_id] = f"{name} ({entity_id})"
 
             if sensor_options:
-                # Auto-select the first sensor found as the default
+                # Auto-select the first sensor as default
                 default_sensor = power_sensors[0] if power_sensors else None
+                # Get the friendly name for the label
                 device_name = device_names_list.get(device_id, device_id)
 
+                # Use the friendly name as the key, which the UI will use as the label
                 schema_fields[
-                    vol.Required(f"sensor_{device_id}", default=default_sensor)
+                    vol.Required(device_name, default=default_sensor)
                 ] = vol.In(sensor_options)
 
         if not schema_fields:
-            # This should ideally not be reached if the user step worked correctly
             return self.async_abort(reason="no_sensors_found")
 
         return self.async_show_form(
@@ -107,7 +108,6 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         Returns:
             A dictionary mapping device IDs to a list of their power sensor entity IDs.
-            Example: {"device_id_1": ["sensor.power_1"], "device_id_2": ["sensor.power_2"]}
         """
         power_devices = {}
         ent_reg = er.async_get(self.hass)
@@ -126,18 +126,20 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _get_device_names(self, device_ids: list[str]) -> Dict[str, str]:
         """
-        Get friendly names for a list of device IDs.
+        Get friendly names for a list of device IDs, excluding disabled ones,
+        and sorted alphabetically.
 
         Returns:
-            A dictionary mapping device IDs to their friendly names.
-            Example: {"device_id_1": "Smart Plug (TP-Link)"}
+            A sorted dictionary mapping device IDs to their friendly names.
         """
         dev_reg = dr.async_get(self.hass)
         device_names = {}
         for device_id in device_ids:
             device = dev_reg.async_get(device_id)
-            if device:
+            if device and not device.disabled_by:
                 name = device.name_by_user or device.name or f"Device {device.id}"
                 manufacturer = f" ({device.manufacturer})" if device.manufacturer else ""
                 device_names[device_id] = f"{name}{manufacturer}"
-        return device_names
+        
+        # Sort the dictionary by device name (the value)
+        return dict(sorted(device_names.items(), key=lambda item: item[1]))
