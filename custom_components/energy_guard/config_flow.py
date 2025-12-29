@@ -122,7 +122,7 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     power_devices[entity.device_id] = []
                 power_devices[entity.device_id].append(entity.entity_id)
 
-        return powerdevices
+        return power_devices
 
     async def _get_device_names(self, device_ids: list[str]) -> Dict[str, str]:
         """
