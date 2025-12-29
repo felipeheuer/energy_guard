@@ -1,6 +1,6 @@
 """Config flow for Energy Guard."""
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -31,7 +31,7 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.selected_devices = user_input["devices"]
             return await self.async_step_sensors()
 
-        # Find all devices that have at least one power sensor (W or kW)
+        # Find all devices that have a power sensor AND a switch
         self.power_devices_map = await self._get_power_devices_map()
 
         if not self.power_devices_map:
@@ -101,22 +101,33 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(schema_fields),
         )
 
+    async def _get_switch_device_ids(self) -> Set[str]:
+        """Returns a set of device IDs that have at least one switch entity."""
+        switch_devices = set()
+        ent_reg = er.async_get(self.hass)
+        for entity in ent_reg.entities.values():
+            if entity.domain == "switch" and entity.device_id:
+                switch_devices.add(entity.device_id)
+        return switch_devices
+
     async def _get_power_devices_map(self) -> Dict[str, list[str]]:
         """
         Scan all sensor entities and return a map of devices that have
-        power sensors (W or kW).
+        both power sensors (W or kW) AND a switch entity.
 
         Returns:
             A dictionary mapping device IDs to a list of their power sensor entity IDs.
         """
         power_devices = {}
         ent_reg = er.async_get(self.hass)
+        switch_devices_set = await self._get_switch_device_ids()
 
         for entity in ent_reg.entities.values():
             if (
                 entity.domain == "sensor"
                 and entity.device_id
                 and entity.unit_of_measurement in ("W", "kW")
+                and entity.device_id in switch_devices_set
             ):
                 if entity.device_id not in power_devices:
                     power_devices[entity.device_id] = []
@@ -140,6 +151,6 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 name = device.name_by_user or device.name or f"Device {device.id}"
                 manufacturer = f" ({device.manufacturer})" if device.manufacturer else ""
                 device_names[device_id] = f"{name}{manufacturer}"
-        
+
         # Sort the dictionary by device name (the value)
         return dict(sorted(device_names.items(), key=lambda item: item[1]))
