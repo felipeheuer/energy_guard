@@ -20,7 +20,7 @@ This integration is a **software-based monitoring tool**. It relies on Home Assi
 
 ## ✨ Features
 
-* **Universal Compatibility:** Works with any device that exposes a Power sensor (Watts or Kilowatts), including Tasmota, Tuya/LocalTuya, Zigbee2MQTT, and ZHA.
+* **Focused Compatibility:** Works with any controllable device (e.g., smart plugs, sockets) that has both a **Power sensor** (in `W` or `kW`) and a **`switch` entity**. This ensures that only devices that can be physically turned off by the integration are listed.
 * **2-Step Configuration:** Easily select your devices and map the correct power sensor via the UI.
 * **Smart Normalization:** Automatically handles sensors reporting in `W` or `kW`.
 * **Configurable Limits:**
