@@ -9,45 +9,50 @@ from .const import DOMAIN, PLATFORMS
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Energy Guard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # The main data structure for this integration
+    device_settings = {}
     
-    selection_map = entry.data.get("selection_map", {})
-    device_map = {}
-    
+    # New configuration structure under the 'devices' key
+    config_devices = entry.data.get("devices", {})
+
     ent_reg = er.async_get(hass)
     dev_reg = dr.async_get(hass)
-    
-    for device_id, power_sensor_id in selection_map.items():
+
+    for device_id, settings in config_devices.items():
         device = dev_reg.async_get(device_id)
         if not device:
+            _LOGGER.warning(f"Device with ID {device_id} not found, skipping.")
             continue
 
-        # Prepare device info manually to ensure it's JSON serializable/safe
-        dev_identifiers = list(device.identifiers) if device.identifiers else []
-        dev_connections = list(device.connections) if device.connections else []
-        
-        if not dev_identifiers and not dev_connections:
-            continue
-
-        # Find Switch
+        # Find the primary switch entity for this device
         control_switch_id = None
-        entries = er.async_entries_for_device(ent_reg, device_id)
-        for entity in entries:
+        for entity in er.async_entries_for_device(ent_reg, device_id):
             if entity.domain == "switch" and entity.platform != DOMAIN:
                 control_switch_id = entity.entity_id
                 break
         
-        device_map[device_id] = {
-            "power_entity": power_sensor_id,
+        if not control_switch_id:
+            _LOGGER.warning(
+                f"No controllable switch found for device {device.name} ({device_id}), skipping."
+            )
+            continue
+            
+        device_settings[device_id] = {
+            "power_sensor": settings["power_sensor"],
+            "peak_power": settings["peak_power"],
+            "trip_delay": settings["trip_delay"],
+            "safety_cutoff_enabled": settings["safety_cutoff_enabled"],
             "switch_entity": control_switch_id,
-            "identifiers": dev_identifiers,
-            "connections": dev_connections,
-            "name": device.name or "Unknown"
+            "device_name": device.name or "Unknown Device",
         }
 
-    hass.data[DOMAIN][entry.entry_id] = device_map
+    hass.data[DOMAIN][entry.entry_id] = device_settings
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
