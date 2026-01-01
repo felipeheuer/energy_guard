@@ -82,7 +82,7 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_options(self, user_input: Dict[str, Any] | None = None):
-        """Ask the user to configure device-specific options."""
+        """Ask the user to configure device-specific options using a flat schema."""
         if user_input is not None:
             final_devices = {}
             for device_id, sensor_entity in self.sensor_map.items():
@@ -98,28 +98,33 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         schema_fields = {}
-        device_names_list = await self._get_device_names(self.selected_devices)
+        device_names_list = await self._get_device_names(list(self.sensor_map.keys()))
 
-        for device_id in self.selected_devices:
+        for device_id in self.sensor_map.keys():
             device_name = device_names_list.get(device_id, device_id)
-            # Add a visual separator/marker for each device
-            schema_fields[vol.Marker(device_name)] = str
+            
+            # Use a non-editable marker for a clean heading
+            schema_fields[vol.Marker(device_name)] = ""
 
-            # Add fields for this device
             schema_fields[
                 vol.Required(
-                    f"peak_power_{device_id}", default=DEFAULT_POWER_LIMIT
+                    f"peak_power_{device_id}",
+                    default=DEFAULT_POWER_LIMIT,
+                    description="Peak Power (W)",
                 )
             ] = vol.All(vol.Coerce(int), vol.Range(min=1))
             schema_fields[
                 vol.Required(
-                    f"trip_delay_{device_id}", default=DEFAULT_TRIP_DELAY
+                    f"trip_delay_{device_id}",
+                    default=DEFAULT_TRIP_DELAY,
+                    description="Trip Delay (s)",
                 )
             ] = vol.All(vol.Coerce(int), vol.Range(min=0))
             schema_fields[
                 vol.Required(
                     f"safety_cutoff_{device_id}",
                     default=DEFAULT_SAFETY_CUTOFF,
+                    description="Enable Safety Cutoff",
                 )
             ] = cv.boolean
 
