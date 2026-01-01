@@ -3,7 +3,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.const import STATE_ON
-from .const import DOMAIN, ICON_GUARD_ON, ICON_GUARD_OFF, DEFAULT_SAFETY_CUTOFF
+from .const import DOMAIN, ICON_GUARD_ON, ICON_GUARD_OFF
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the switch entities."""
@@ -19,7 +19,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 settings,
                 "safety_cutoff",
                 "Guard: Safety Cutoff",
-                settings.get("safety_cutoff_enabled", DEFAULT_SAFETY_CUTOFF),
+                settings.get("safety_cutoff_enabled"),
                 ICON_GUARD_ON,
                 ICON_GUARD_OFF,
             ),
@@ -55,10 +55,9 @@ class EnergyGuardSwitch(SwitchEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information."""
+        """Return device information to link to the original device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device_id)},
-            name=self._settings["device_name"],
+            identifiers=self._settings["identifiers"],
         )
 
     async def async_added_to_hass(self) -> None:

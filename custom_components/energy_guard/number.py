@@ -2,7 +2,7 @@
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
-from .const import DOMAIN, DEFAULT_POWER_LIMIT, DEFAULT_TRIP_DELAY
+from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the number entities."""
@@ -16,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 "peak_power",
                 "Guard: Power Limit",
                 "W",
-                settings.get("peak_power", DEFAULT_POWER_LIMIT),
+                settings.get("peak_power"),
                 0,
                 10000,
                 1,
@@ -28,7 +28,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 "trip_delay",
                 "Guard: Trip Delay",
                 "s",
-                settings.get("trip_delay", DEFAULT_TRIP_DELAY),
+                settings.get("trip_delay"),
                 0,
                 60,
                 1,
@@ -62,10 +62,9 @@ class EnergyGuardNumber(NumberEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information."""
+        """Return device information to link to the original device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device_id)},
-            name=self._settings["device_name"],
+            identifiers=self._settings["identifiers"],
         )
 
     async def async_added_to_hass(self) -> None:

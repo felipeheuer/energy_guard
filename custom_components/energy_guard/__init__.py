@@ -12,10 +12,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Energy Guard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # The main data structure for this integration
     device_settings = {}
-    
-    # New configuration structure under the 'devices' key
     config_devices = entry.data.get("devices", {})
 
     ent_reg = er.async_get(hass)
@@ -27,7 +24,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning(f"Device with ID {device_id} not found, skipping.")
             continue
 
-        # Find the primary switch entity for this device
         control_switch_id = None
         for entity in er.async_entries_for_device(ent_reg, device_id):
             if entity.domain == "switch" and entity.platform != DOMAIN:
@@ -47,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "safety_cutoff_enabled": settings["safety_cutoff_enabled"],
             "switch_entity": control_switch_id,
             "device_name": device.name or "Unknown Device",
+            "identifiers": device.identifiers,
         }
 
     hass.data[DOMAIN][entry.entry_id] = device_settings

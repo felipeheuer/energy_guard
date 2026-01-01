@@ -12,10 +12,10 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the binary sensor platform."""
-    device_map = hass.data[DOMAIN][entry.entry_id]
+    device_settings = hass.data[DOMAIN][entry.entry_id]
     entities = []
-    for device_id, data in device_map.items():
-        entities.append(EnergyGuardBinarySensor(hass, device_id, data))
+    for device_id, settings in device_settings.items():
+        entities.append(EnergyGuardBinarySensor(hass, device_id, settings))
     async_add_entities(entities)
 
 class EnergyGuardBinarySensor(BinarySensorEntity):
@@ -25,12 +25,12 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
     _attr_name = "Guard: Alert Status"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, hass, device_id, data):
+    def __init__(self, hass, device_id, settings):
         self.hass = hass
         self._device_id = device_id
-        self._data = data
-        self._source_entity = data["power_entity"]
-        self._cutoff_switch_physical = data["switch_entity"]
+        self._settings = settings
+        self._source_entity = settings["power_sensor"]
+        self._cutoff_switch_physical = settings["switch_entity"]
         
         self._attr_unique_id = f"{device_id}_alert"
         self._attr_is_on = False
@@ -46,9 +46,9 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information to link to the original device."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers=self._settings["identifiers"],
         )
 
     @property
@@ -65,7 +65,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
                 domain, DOMAIN, f"{self._device_id}_{key}"
             )
 
-        self._ent_limit = resolve_entity("power_limit", "number")
+        self._ent_limit = resolve_entity("peak_power", "number")
         self._ent_delay = resolve_entity("trip_delay", "number")
         self._ent_monitor = resolve_entity("monitor_enabled", "switch")
         self._ent_cutoff_config = resolve_entity("safety_cutoff", "switch")
@@ -117,13 +117,14 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
             return
 
         # 3. Read Configured Limit (Slider)
-        limit = 2000.0 # Safety default
-        if self._ent_limit:
-            st = self.hass.states.get(self._ent_limit)
-            if st and st.state not in ("unknown", "unavailable"):
-                try:
-                    limit = float(st.state)
-                except ValueError: pass
+        limit = self._settings.get("peak_power")
+        delay = self._settings.get("trip_delay")
+
+        st_limit = self.hass.states.get(self._ent_limit)
+        if st_limit and st_limit.state not in ("unknown", "unavailable"):
+            try:
+                limit = float(st_limit.state)
+            except ValueError: pass
 
         # 4. Comparison Logic
         if current_power > limit:
@@ -133,13 +134,11 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
             
             if self._timer_remove is None:
                 # Start Tolerance Timer (Delay)
-                delay = 3.0
-                if self._ent_delay:
-                    st = self.hass.states.get(self._ent_delay)
-                    if st and st.state not in ("unknown", "unavailable"):
-                        try:
-                            delay = float(st.state)
-                        except ValueError: pass
+                st_delay = self.hass.states.get(self._ent_delay)
+                if st_delay and st_delay.state not in ("unknown", "unavailable"):
+                    try:
+                        delay = float(st_delay.state)
+                    except ValueError: pass
                 
                 _LOGGER.debug(f"EnergyGuard: Overload ({current_power}W > {limit}W). Waiting {delay}s...")
                 self._timer_remove = async_call_later(self.hass, delay, self._trip_alarm)

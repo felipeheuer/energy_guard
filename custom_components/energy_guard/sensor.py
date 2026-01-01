@@ -14,15 +14,18 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    device_map = hass.data[DOMAIN][entry.entry_id]
+    """Set up the sensor entities."""
+    device_settings = hass.data[DOMAIN][entry.entry_id]
     entities = []
-    for device_id, data in device_map.items():
-        entities.append(EnergyGuardPeakSensor(
-            device_id, data, "max_peak", "Guard: Max Peak"
-        ))
-        entities.append(EnergyGuardCounterSensor(
-            device_id, data, "trip_count", "Guard: Trip Count"
-        ))
+    for device_id, settings in device_settings.items():
+        entities.extend([
+            EnergyGuardPeakSensor(
+                device_id, settings, "max_peak", "Guard: Max Peak"
+            ),
+            EnergyGuardCounterSensor(
+                device_id, settings, "trip_count", "Guard: Trip Count"
+            ),
+        ])
     async_add_entities(entities)
 
 class EnergyGuardPeakSensor(SensorEntity, RestoreEntity):
@@ -33,19 +36,19 @@ class EnergyGuardPeakSensor(SensorEntity, RestoreEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, device_id, data, key, name):
+    def __init__(self, device_id, settings, key, name):
         self._device_id = device_id
-        self._data = data
-        self._source_entity = data["power_entity"]
+        self._settings = settings
+        self._source_entity = settings["power_sensor"]
         self._attr_unique_id = f"{device_id}_{key}"
         self._attr_name = name
         self._attr_native_value = 0
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information to link to the original device."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers=self._settings["identifiers"],
         )
 
     async def async_added_to_hass(self) -> None:
@@ -96,18 +99,18 @@ class EnergyGuardCounterSensor(SensorEntity, RestoreEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, device_id, data, key, name):
+    def __init__(self, device_id, settings, key, name):
         self._device_id = device_id
-        self._data = data
+        self._settings = settings
         self._attr_unique_id = f"{device_id}_{key}"
         self._attr_name = name
         self._attr_native_value = 0
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information to link to the original device."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers=self._settings["identifiers"],
         )
 
     async def async_added_to_hass(self) -> None:
@@ -125,7 +128,7 @@ class EnergyGuardCounterSensor(SensorEntity, RestoreEntity):
 
     @callback
     def _handle_increment(self, event):
-        self._attr_native_value = int(self._attr_native_value) + 1
+        self._attr_native_value = int(self._attr_native_value or 0) + 1
         self.async_write_ha_state()
 
     @callback
