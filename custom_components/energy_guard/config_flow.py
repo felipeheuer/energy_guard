@@ -37,11 +37,13 @@ async def _get_power_devices_map(hass) -> Dict[str, List[str]]:
 async def _get_device_names(hass, device_ids: List[str]) -> Dict[str, str]:
     """Gets friendly names for a list of device IDs."""
     dev_reg = dr.async_get(hass)
-    device_names = {
-        device_id: (dev.name_by_user or dev.name or f"Device {dev.id}")
-        for device_id in device_ids
-        if (dev := dev_reg.async_get(device_id)) and not dev.disabled_by
-    }
+    device_names = {}
+    for device_id in device_ids:
+        device = dev_reg.async_get(device_id)
+        if device and not device.disabled_by:
+            name = device.name_by_user or device.name or f"Device {device.id}"
+            manufacturer = f" ({device.manufacturer})" if device.manufacturer else ""
+            device_names[device_id] = f"{name}{manufacturer}"
     return dict(sorted(device_names.items(), key=lambda item: item[1]))
 
 
