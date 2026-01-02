@@ -95,7 +95,6 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             selection_map = {}
             if self.existing_entry:
-                # Get the existing map and update it
                 selection_map = self.existing_entry.data.get("selection_map", {}).copy()
 
             ent_reg = er.async_get(self.hass)
@@ -105,14 +104,12 @@ class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selection_map[entry.device_id] = entity_id
             
             if self.existing_entry:
-                # Update the existing entry's data
                 self.hass.config_entries.async_update_entry(
                     self.existing_entry, data={"selection_map": selection_map}
                 )
-                # End the flow
+                await self.hass.config_entries.async_reload(self.existing_entry.entry_id)
                 return self.async_abort(reason="reconfigure_successful")
             else:
-                # Create a new entry
                 return self.async_create_entry(title=DEFAULT_NAME, data={"selection_map": selection_map})
 
         device_names = await _get_device_names(self.hass, self.selected_devices)
