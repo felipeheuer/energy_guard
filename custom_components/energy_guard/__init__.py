@@ -8,7 +8,9 @@ from .const import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Energy Guard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     
     selection_map = entry.data.get("selection_map", {})
@@ -22,17 +24,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not device:
             continue
 
-        # Prepare device info manually to ensure it's JSON serializable/safe
-        dev_identifiers = list(device.identifiers) if device.identifiers else []
-        dev_connections = list(device.connections) if device.connections else []
-        
-        if not dev_identifiers and not dev_connections:
-            continue
-
-        # Find Switch
         control_switch_id = None
-        entries = er.async_entries_for_device(ent_reg, device_id)
-        for entity in entries:
+        for entity in er.async_entries_for_device(ent_reg, device_id):
             if entity.domain == "switch" and entity.platform != DOMAIN:
                 control_switch_id = entity.entity_id
                 break
@@ -40,18 +33,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         device_map[device_id] = {
             "power_entity": power_sensor_id,
             "switch_entity": control_switch_id,
-            "identifiers": dev_identifiers,
-            "connections": dev_connections,
+            "identifiers": device.identifiers,
+            "connections": device.connections,
             "name": device.name or "Unknown"
         }
 
     hass.data[DOMAIN][entry.entry_id] = device_map
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
+    # Set up a listener to automatically reload the integration when data is updated
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    
+    # Forward the setup to all platforms (sensor, switch, etc.)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
     return True
 
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
+
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
