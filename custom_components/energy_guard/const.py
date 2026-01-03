@@ -14,10 +14,8 @@ PLATFORMS = [
 
 CONF_MONITORED_DEVICES = "monitored_devices"
 
-# Default values for config flow options
-DEFAULT_POWER_LIMIT = 2000  # Watts
-DEFAULT_TRIP_DELAY = 3  # Seconds
-DEFAULT_SAFETY_CUTOFF = False
+DEFAULT_LIMIT_W = 2000
+DEFAULT_DELAY_SEC = 3
 
 ICON_GUARD_ON = "mdi:shield-check"
 ICON_GUARD_OFF = "mdi:shield-off"
