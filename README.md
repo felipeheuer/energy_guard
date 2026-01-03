@@ -99,7 +99,7 @@ We are constantly working to improve Energy Guard. Here are the features planned
 
 ## 🛠️ Troubleshooting
 
-* **Tasmota Devices:** Ensure your Tasmota device is discovered by Home Assistant (SetOption19 0 recommended). The integration looks for sensors with `device_class: power` or unit `W`/`kW`.
+* **Tasmota Devices:** Ensure your Tasmota device is discovered by Home Assistant (SetOption19 0 recommended). The integration looks for sensors with `device_class: power` or unit `W`/`kW`. The issue where Energy Guard entities were not appearing for Tasmota devices has been resolved.
 * **Values Resetting?** Ensure you are running the latest version. Settings are stored using `RestoreEntity`.
 
 ---

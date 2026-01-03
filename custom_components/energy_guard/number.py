@@ -51,7 +51,7 @@ class EnergyGuardNumber(NumberEntity, RestoreEntity):
         self._device_id = device_id
         self._data = data
         self._key = key
-        self._attr_name = name
+        self._attr_name = name 
         self._attr_native_unit_of_measurement = unit
         self._attr_native_value = default
         self._attr_native_min_value = min_v

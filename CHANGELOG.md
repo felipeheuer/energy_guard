@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-01-03
+
+### Fixed
+- Fixed Tasmota Device Linking: Corrected an issue where Energy Guard entities (Power Limit, Trip Delay) were not appearing under Tasmota devices due to incorrect device linking. All entities should now correctly associate with their respective parent devices.
+
 ## [0.2.0] - 2026-01-03
 
 ### Changed
