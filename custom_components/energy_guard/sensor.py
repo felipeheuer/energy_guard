@@ -43,9 +43,10 @@ class EnergyGuardPeakSensor(SensorEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information to link this entity to the correct device."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers={tuple(i) for i in self._data["identifiers"]},
+            connections={tuple(c) for c in self._data["connections"]},
         )
 
     async def async_added_to_hass(self) -> None:
@@ -105,9 +106,10 @@ class EnergyGuardCounterSensor(SensorEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information to link this entity to the correct device."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers={tuple(i) for i in self._data["identifiers"]},
+            connections={tuple(c) for c in self._data["connections"]},
         )
 
     async def async_added_to_hass(self) -> None:

@@ -46,9 +46,9 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information."""
+        """Return device information to link this entity to the correct device."""
         return DeviceInfo(
-            identifiers=self._data["identifiers"],
+            identifiers={tuple(i) for i in self._data["identifiers"]},
         )
 
     @property

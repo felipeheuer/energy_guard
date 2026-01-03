@@ -62,9 +62,9 @@ class EnergyGuardNumber(NumberEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information to link to the original device."""
+        """Return device information to link this entity to the correct device."""
         return DeviceInfo(
-            identifiers=self._data["identifiers"],
+            identifiers={tuple(i) for i in self._data["identifiers"]}
         )
 
     async def async_added_to_hass(self) -> None:
