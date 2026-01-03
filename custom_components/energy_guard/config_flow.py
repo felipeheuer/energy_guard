@@ -1,6 +1,6 @@
-"""Config flow for Energy Guard."""
+"""Config flow for Energy Guard, following the Battery Notes pattern."""
 import logging
-from typing import Any, Dict, Set
+from typing import Any, Dict, List
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -12,145 +12,114 @@ from .const import DOMAIN, DEFAULT_NAME
 _LOGGER = logging.getLogger(__name__)
 
 
-class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Energy Guard."""
+async def _get_power_devices_map(hass) -> Dict[str, List[str]]:
+    """Scans for devices with both a switch and a power sensor."""
+    power_devices = {}
+    ent_reg = er.async_get(hass)
+    
+    switch_devices = {
+        entity.device_id
+        for entity in ent_reg.entities.values()
+        if entity.domain == "switch" and entity.device_id
+    }
 
+    for entity in ent_reg.entities.values():
+        if (
+            entity.device_id in switch_devices
+            and entity.domain == "sensor"
+            and entity.unit_of_measurement in ("W", "kW")
+        ):
+            power_devices.setdefault(entity.device_id, []).append(entity.entity_id)
+            
+    return power_devices
+
+
+async def _get_device_names(hass, device_ids: List[str]) -> Dict[str, str]:
+    """Gets friendly names for a list of device IDs."""
+    dev_reg = dr.async_get(hass)
+    device_names = {}
+    for device_id in device_ids:
+        device = dev_reg.async_get(device_id)
+        if device and not device.disabled_by:
+            name = device.name_by_user or device.name or f"Device {device.id}"
+            manufacturer = f" ({device.manufacturer})" if device.manufacturer else ""
+            device_names[device_id] = f"{name}{manufacturer}"
+    return dict(sorted(device_names.items(), key=lambda item: item[1]))
+
+
+class EnergyGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handles the config flow for Energy Guard."""
     VERSION = 1
 
     def __init__(self):
-        """Initialize the config flow."""
-        self.selected_devices = []
-        self.power_devices_map: Dict[str, list[str]] = {}
+        self.power_devices_map: Dict[str, List[str]] = {}
+        self.selected_devices: List[str] = []
+        self.existing_entry: config_entries.ConfigEntry | None = None
 
-    async def async_step_user(self, user_input: Dict[str, Any] | None = None):
-        """
-        Handle the initial step where the user selects devices
-        that have power-monitoring entities.
-        """
+    async def async_step_user(self, user_input=None):
+        """Handle the initial step."""
+        # Find the single instance of this integration, if it exists
+        if self.hass.config_entries.async_entries(DOMAIN):
+            self.existing_entry = self.hass.config_entries.async_entries(DOMAIN)[0]
+
         if user_input is not None:
             self.selected_devices = user_input["devices"]
             return await self.async_step_sensors()
 
-        # Find all devices that have a power sensor AND a switch
-        self.power_devices_map = await self._get_power_devices_map()
-
+        self.power_devices_map = await _get_power_devices_map(self.hass)
         if not self.power_devices_map:
             return self.async_abort(reason="no_power_devices_found")
 
-        # Get user-friendly names for the discovered devices
-        device_names = await self._get_device_names(list(self.power_devices_map.keys()))
+        # Exclude devices that are already configured
+        if self.existing_entry:
+            current_selection = self.existing_entry.data.get("selection_map", {})
+            available_devices = {
+                k: v for k, v in self.power_devices_map.items() if k not in current_selection
+            }
+        else:
+            available_devices = self.power_devices_map
 
+        if not available_devices:
+            return self.async_abort(reason="no_new_devices_found")
+
+        device_names = await _get_device_names(self.hass, list(available_devices.keys()))
+        
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {vol.Required("devices"): cv.multi_select(device_names)}
-            ),
+            data_schema=vol.Schema({vol.Required("devices"): cv.multi_select(device_names)}),
             last_step=False,
         )
 
-    async def async_step_sensors(self, user_input: Dict[str, Any] | None = None):
-        """
-        For each selected device, ask the user to confirm the power sensor.
-        Auto-selects the first one found if multiple exist.
-        """
-        ent_reg = er.async_get(self.hass)
-
+    async def async_step_sensors(self, user_input=None):
+        """Handle the sensor selection step."""
         if user_input is not None:
             selection_map = {}
-            # User input is now { friendly_device_name: entity_id }
-            # We need to get the device_id from the entity_id
+            if self.existing_entry:
+                selection_map = self.existing_entry.data.get("selection_map", {}).copy()
+
+            ent_reg = er.async_get(self.hass)
             for entity_id in user_input.values():
                 entry = ent_reg.async_get(entity_id)
                 if entry and entry.device_id:
                     selection_map[entry.device_id] = entity_id
+            
+            if self.existing_entry:
+                self.hass.config_entries.async_update_entry(
+                    self.existing_entry, data={"selection_map": selection_map}
+                )
+                await self.hass.config_entries.async_reload(self.existing_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+            else:
+                return self.async_create_entry(title=DEFAULT_NAME, data={"selection_map": selection_map})
 
-            return self.async_create_entry(
-                title=DEFAULT_NAME, data={"selection_map": selection_map}
-            )
-
-        schema_fields = {}
-        device_names_list = await self._get_device_names(self.selected_devices)
-
+        device_names = await _get_device_names(self.hass, self.selected_devices)
+        schema = {}
         for device_id in self.selected_devices:
             power_sensors = self.power_devices_map.get(device_id, [])
-
-            # Create a dictionary of {entity_id: friendly_name} for the dropdown
-            sensor_options = {}
-            for entity_id in power_sensors:
-                entry = ent_reg.async_get(entity_id)
-                if entry:
-                    name = entry.original_name or entry.name or entity_id
-                    sensor_options[entity_id] = f"{name} ({entity_id})"
+            sensor_options = {s: f"{s.split('.')[-1].replace('_', ' ').title()} ({s})" for s in power_sensors}
 
             if sensor_options:
-                # Auto-select the first sensor as default
-                default_sensor = power_sensors[0] if power_sensors else None
-                # Get the friendly name for the label
-                device_name = device_names_list.get(device_id, device_id)
+                device_name = device_names.get(device_id, device_id)
+                schema[vol.Required(device_name, default=power_sensors[0])] = vol.In(sensor_options)
 
-                # Use the friendly name as the key, which the UI will use as the label
-                schema_fields[
-                    vol.Required(device_name, default=default_sensor)
-                ] = vol.In(sensor_options)
-
-        if not schema_fields:
-            return self.async_abort(reason="no_sensors_found")
-
-        return self.async_show_form(
-            step_id="sensors",
-            data_schema=vol.Schema(schema_fields),
-        )
-
-    async def _get_switch_device_ids(self) -> Set[str]:
-        """Returns a set of device IDs that have at least one switch entity."""
-        switch_devices = set()
-        ent_reg = er.async_get(self.hass)
-        for entity in ent_reg.entities.values():
-            if entity.domain == "switch" and entity.device_id:
-                switch_devices.add(entity.device_id)
-        return switch_devices
-
-    async def _get_power_devices_map(self) -> Dict[str, list[str]]:
-        """
-        Scan all sensor entities and return a map of devices that have
-        both power sensors (W or kW) AND a switch entity.
-
-        Returns:
-            A dictionary mapping device IDs to a list of their power sensor entity IDs.
-        """
-        power_devices = {}
-        ent_reg = er.async_get(self.hass)
-        switch_devices_set = await self._get_switch_device_ids()
-
-        for entity in ent_reg.entities.values():
-            if (
-                entity.domain == "sensor"
-                and entity.device_id
-                and entity.unit_of_measurement in ("W", "kW")
-                and entity.device_id in switch_devices_set
-            ):
-                if entity.device_id not in power_devices:
-                    power_devices[entity.device_id] = []
-                power_devices[entity.device_id].append(entity.entity_id)
-
-        return power_devices
-
-    async def _get_device_names(self, device_ids: list[str]) -> Dict[str, str]:
-        """
-        Get friendly names for a list of device IDs, excluding disabled ones,
-        and sorted alphabetically.
-
-        Returns:
-            A sorted dictionary mapping device IDs to their friendly names.
-        """
-        dev_reg = dr.async_get(self.hass)
-        device_names = {}
-        for device_id in device_ids:
-            device = dev_reg.async_get(device_id)
-            if device and not device.disabled_by:
-                name = device.name_by_user or device.name or f"Device {device.id}"
-                manufacturer = f" ({device.manufacturer})" if device.manufacturer else ""
-                device_names[device_id] = f"{name}{manufacturer}"
-
-        # Sort the dictionary by device name (the value)
-        return dict(sorted(device_names.items(), key=lambda item: item[1]))
+        return self.async_show_form(step_id="sensors", data_schema=vol.Schema(schema))
