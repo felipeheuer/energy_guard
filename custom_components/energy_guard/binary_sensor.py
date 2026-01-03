@@ -6,7 +6,7 @@ from homeassistant.helpers.event import async_track_state_change_event, async_ca
 from homeassistant.helpers.entity_registry import async_get as async_get_ent_reg
 from homeassistant.core import callback
 from homeassistant.const import STATE_ON, SERVICE_TURN_OFF
-from .const import DOMAIN, ICON_ALERT
+from .const import DOMAIN, ICON_ALERT, DEFAULT_POWER_LIMIT, DEFAULT_TRIP_DELAY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,9 +46,9 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device information."""
         return DeviceInfo(
-            identifiers=set(tuple(x) for x in self._data["identifiers"]),
-            connections=set(tuple(x) for x in self._data["connections"])
+            identifiers=self._data["identifiers"],
         )
 
     @property
@@ -117,7 +117,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
             return
 
         # 3. Read Configured Limit (Slider)
-        limit = 2000.0 # Safety default
+        limit = DEFAULT_POWER_LIMIT # Fallback if entity not ready
         if self._ent_limit:
             st = self.hass.states.get(self._ent_limit)
             if st and st.state not in ("unknown", "unavailable"):
@@ -133,7 +133,7 @@ class EnergyGuardBinarySensor(BinarySensorEntity):
             
             if self._timer_remove is None:
                 # Start Tolerance Timer (Delay)
-                delay = 3.0
+                delay = DEFAULT_TRIP_DELAY # Fallback if entity not ready
                 if self._ent_delay:
                     st = self.hass.states.get(self._ent_delay)
                     if st and st.state not in ("unknown", "unavailable"):
