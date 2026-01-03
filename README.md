@@ -51,9 +51,11 @@ This integration is a **software-based monitoring tool**. It relies on Home Assi
 
 1.  Go to **Settings** > **Devices & Services**.
 2.  Click **Add Integration** and search for **"Energy Guard"**.
-3.  **Step 1:** Select the devices you want to protect from the list.
-4.  **Step 2:** For each selected device, choose the specific **Power Sensor** (e.g., `sensor.tasmota_energy_power`) from the dropdown menu.
-5.  Click **Submit**.
+3.  **Step 1: Select Devices:** A list of available, unconfigured devices will be shown. Select the devices you want to protect.
+4.  **Step 2: Confirm Sensors:** For each selected device, confirm the correct power sensor.
+5.  Click **Submit**. The integration is now set up.
+
+To add more devices later, simply repeat the "Add Integration" process. The flow is smart enough to only show you new, unconfigured devices.
 
 ---
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0] - 2026-01-03
+
+### Changed
+- **Architectural Rework:** The integration now runs as a single instance. New devices are added by running the "Add Integration" flow again, which intelligently finds and adds new devices to the existing setup.
+- **Improved Configuration Flow:** The device selection list now excludes already configured devices.
+- **Type changed to "Service":** The integration is now correctly classified as a "service" in Home Assistant.
+
+### Fixed
+- Resolved multiple bugs that caused the configuration flow to crash or show confusing dialogs.
+- Fixed a critical bug that created new, duplicate "Energy Guard" devices instead of attaching entities to the original device.
+
 ## 0.1.0
 
 ### Changed
